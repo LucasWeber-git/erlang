@@ -1,7 +1,7 @@
 -module(water_simulation).
 -export([start/1, particle_generator/3, particle/2, hydrogen_list/1, get_hydrogen_list/1, oxygen_list/1, get_oxygen_list/1, molecule_generator/2]).
 
-%cria os processos e inicia o gerador
+% Creates all processes and start the generator
 start(Seconds) -> 
     HydrogenListPid = spawn(water_simulation, hydrogen_list, [[]]),
     OxygenListPid = spawn(water_simulation, oxygen_list, [[]]),
@@ -9,20 +9,20 @@ start(Seconds) ->
     spawn(water_simulation, particle_generator, [Seconds, HydrogenListPid, OxygenListPid]),
     spawn(water_simulation, molecule_generator, [HydrogenListPid, OxygenListPid]).
 
-% fica gerando particulas pra sempre
+% Controls particles generation
 particle_generator(Seconds, HydrogenListPid, OxygenListPid) ->
     generate(HydrogenListPid, OxygenListPid),
     timer:sleep(Seconds * 1000),
     particle_generator(Seconds, HydrogenListPid, OxygenListPid).
 
-% gera uma nova molecula já passando qual lista ela tem que ficar
+% Generates a new particle with it's corresponding list
 generate(HydrogenListPid, OxygenListPid) -> 
     Elements = [{hydrogen, HydrogenListPid}, {oxygen, OxygenListPid}],
     RandomIndex = rand:uniform(length(Elements)),
     RandomElement = lists:nth(RandomIndex, Elements),
     spawn(water_simulation, particle, [element(1, RandomElement), element(2, RandomElement)]).
 
-% energiza a molecula e depois adiciona na lista
+% Energizes the particle and then adds it to the respective list
 particle(Element, ListPid) -> 
     erlang:display("New " ++ atom_to_list(Element) ++ " particle created with PID: " ++ pid_to_list(self())),
     RandomSeconds = rand:uniform(5), %TODO: mudar para rand:uniform(20) + 10
@@ -30,7 +30,7 @@ particle(Element, ListPid) ->
     erlang:display(atom_to_list(Element) ++ " particle is energized, PID: " ++ pid_to_list(self())),
     ListPid ! {self(), add}.
 
-% cria a lista e fica recebendo os Pids
+% Creates a Hydrogen list and waits to receive it's Pids
 hydrogen_list(List) ->
     receive
         {Pid, get_hydrogen_list} ->
@@ -53,7 +53,7 @@ get_hydrogen_list(HydrogenListPid) ->
         {HydrogenListPid, HydrogenList} -> HydrogenList
     end.
 
-% cria a lista e fica recebendo os Pids
+% Creates a Oxygen list and waits to receive it's Pids
 oxygen_list(List) -> 
      receive
         {Pid, get_oxygen_list} ->
@@ -76,7 +76,7 @@ get_oxygen_list(OxygenListPid) ->
         {OxygenListPid, OxygenList} -> OxygenList
     end.
 
-% pega 2H e 1O e combina; fica buscando de tempos em tempos
+% Searches for 2H and 1O, then taking and combining them
 molecule_generator(HydrogenListPid, OxygenListPid) ->
     HydrogenList = get_hydrogen_list(HydrogenListPid),
     OxygenList = get_oxygen_list(OxygenListPid),
